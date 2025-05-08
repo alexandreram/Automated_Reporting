@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}Highlights and Lowlights{% endblock %}
+
+{% block content %}
+<div class="main-container">
+    <h1>Highlights and Lowlights</h1>
+
+    <form method="POST" class="form-container">
+        {% csrf_token %}
+        <div class="form-columns">
+            <!-- Highlights Column -->
+            <div class="form-column">
+                <h3>Add Highlight</h3>
+                <label for="highlight_text">Highlight:</label>
+                <textarea id="highlight_text" name="highlight_text" rows="4" placeholder="Enter a highlight..."></textarea>
+            </div>
+
+            <!-- Lowlights Column -->
+            <div class="form-column">
+                <h3>Add Lowlight</h3>
+                <label for="lowlight_text">Lowlight:</label>
+                <textarea id="lowlight_text" name="lowlight_text" rows="4" placeholder="Enter a lowlight..."></textarea>
+            </div>
+        </div>
+        <button type="submit" class="button">Submit</button>
+    </form>
+
+    <h2>All Submitted Texts</h2>
+    <div class="submitted-texts">
+        <!-- Highlights Column -->
+        <div class="submitted-column">
+            <h3>Highlights</h3>
+            <ul>
+                {% for text in all_highlights %}
+                    <li>
+                        <strong>{{ text.created_at|date:"Y-m-d H:i" }}:</strong> {{ text.text }}
+                        <a href="{% url 'edit_text' text.id %}">Edit</a> |
+                        <a href="{% url 'delete_text' text.id %}" onclick="return confirm('Are you sure you want to delete this text?');">Delete</a>
+                    </li>
+                {% empty %}
+                    <p>No highlights have been submitted yet.</p>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Lowlights Column -->
+        <div class="submitted-column">
+            <h3>Lowlights</h3>
+            <ul>
+                {% for text in all_lowlights %}
+                    <li>
+                        <strong>{{ text.created_at|date:"Y-m-d H:i" }}:</strong> {{ text.text }}
+                        <a href="{% url 'edit_text' text.id %}">Edit</a> |
+                        <a href="{% url 'delete_text' text.id %}" onclick="return confirm('Are you sure you want to delete this text?');">Delete</a>
+                    </li>
+                {% empty %}
+                    <p>No lowlights have been submitted yet.</p>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Button to Generate PowerPoint -->
+    <form method="GET" action="{% url 'generate_ppt' %}">
+        <button type="submit" class="button">Generate PowerPoint</button>
+    </form>
+</div>
+{% endblock %}

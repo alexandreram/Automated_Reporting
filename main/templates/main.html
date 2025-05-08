@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="main-container">
+    <h1>Welcome, {{ user.username }}!</h1>
+    <div class="content-box">
+        {% if user_level == 4 %}
+            <h2>Your Highlights and Lowlights</h2>
+            <a href="{% url 'HL_LL' %}" class="button">{{ user_div }} {{ user_sub_div }}</a>
+        {% elif user_level == 3 %}
+            <h2>Your Subdivisions</h2>
+            {% for sub_div in sub_divisions %}
+                <a href="{% url 'level_3_page' %}?sub_div={{ sub_div }}" class="button">{{ user_div }} {{ sub_div }}</a>
+            {% endfor %}
+        {% elif user_level == 2 %}
+            <h2>Aggregated Highlights and Lowlights</h2>
+            <a href="{% url 'level_2_page' %}" class="button">{{ user_div }}</a>
+        {% elif user_level == 1 %}
+            <h2>Welcome to the Admin Dashboard</h2>
+            <p>Use the navigation bar to access different sections of the application.</p>
+            <a href="{% url 'level_1_page' %}" class="button">View All Highlights and Lowlights</a>
+            
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

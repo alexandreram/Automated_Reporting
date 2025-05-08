@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block title %}Level 1 - Highlights and Lowlights{% endblock %}
+
+{% block content %}
+<div class="main-container">
+    <h1>All Highlights and Lowlights</h1>
+
+    {% for div, subdivisions in grouped_data.items %}
+        <div class="division-box">
+            <h2>{{ div }}</h2>
+            {% for sub_div, data in subdivisions.items %}
+                <h3>{{ sub_div }}</h3>
+                <div class="submitted-texts">
+                    <div class="submitted-column">
+                        <h4>Highlights</h4>
+                        <ul>
+                            {% for text in data.highlights %}
+                                <li>
+                                    <strong>{{ text.user.profile.div }} - {{ text.user.profile.sub_div }} ({{ text.created_at|date:"Y-m-d H:i" }}):</strong> {{ text.text }}
+                                    <a href="{% url 'edit_text' text.id %}" class="button">Edit</a>
+                                    <a href="{% url 'delete_text' text.id %}" onclick="return confirm('Are you sure you want to delete this text?');">Delete</a>
+                                </li>
+                            {% empty %}
+                                <p>No highlights available.</p>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="submitted-column">
+                        <h4>Lowlights</h4>
+                        <ul>
+                            {% for text in data.lowlights %}
+                                <li>
+                                    <strong>{{ text.user.profile.div }} - {{ text.user.profile.sub_div }} ({{ text.created_at|date:"Y-m-d H:i" }}):</strong> {{ text.text }}
+                                    <a href="{% url 'edit_text' text.id %}" class="button">Edit</a>
+                                    <a href="{% url 'delete_text' text.id %}" onclick="return confirm('Are you sure you want to delete this text?');">Delete</a>
+                                </li>
+                            {% empty %}
+                                <p>No lowlights available.</p>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endfor %}
+
+    <!-- Button to Export PowerPoint -->
+    <form method="GET" action="{% url 'generate_ppt' %}">
+        <button type="submit" class="button">Export to PowerPoint</button>
+    </form>
+</div>
+{% endblock %}

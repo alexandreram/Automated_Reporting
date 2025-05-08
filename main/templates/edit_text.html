@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Edit Text</h1>
+    <form method="post">
+        {% csrf_token %}
+        <label for="typed_text">Edit your text:</label><br>
+        <textarea id="typed_text" name="typed_text" rows="5" cols="40">{{ text.text }}</textarea><br><br>
+        <button type="submit">Save Changes</button>
+    </form>
+    <a href="{% url 'HL_LL' %}">Cancel</a>
+{% endblock %}
+</html>
