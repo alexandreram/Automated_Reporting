@@ -11,6 +11,14 @@ from pptx.enum.text import PP_ALIGN
 from pptx.dml.color import RGBColor
 from django.http import HttpResponseRedirect,HttpResponseBadRequest
 from django.urls import reverse
+from django.conf import settings
+from pptx.util import Inches
+from io import BytesIO
+from .models import Level4Text, Profile
+from .utils import get_all_subordinates
+
+import os
+import datetime
 # Check if the user is Level 4
 def is_level_4(user):
     return user.profile.level == 4
@@ -241,99 +249,86 @@ def add_text(request):
 
 @login_required
 def generate_ppt(request):
-    if request.user.profile.level == 4:
-        all_highlights = Level4Text.objects.filter(user=request.user, category='highlight').order_by('-created_at')
-        all_lowlights = Level4Text.objects.filter(user=request.user, category='lowlight').order_by('-created_at')
-        subdivisions = [request.user.profile.sub_div]  # Only the user's subdivision
+    # Load your uploaded template
+    template_path = os.path.join(settings.BASE_DIR, 'required.pptx')
+    presentation = Presentation(template_path)
+    
 
-    elif request.user.profile.level == 1:
-        # Retrieve all highlights and lowlights for all subdivisions
+    today = datetime.datetime.today().strftime('%d %b %Y')
+    user = request.user
+    full_name = str(user.get_full_name() or user.username)
+    department = user.profile.sub_div or "Unknown Dept"
+
+    #SLIDE1 - Title
+    slide1 = presentation.slides.add_slide(presentation.slide_layouts[0])
+    slide1.shapes.title.text = f"{full_name} – Highlights & Lowlights"
+    if len(slide1.placeholders) > 1:
+        slide1.placeholders[1].text = f"Department: {department}\nDate: {today}"
+
+    #Get HL/LL data
+    if user.profile.level == 4:
+        all_highlights = Level4Text.objects.filter(user=user, category='highlight').order_by('-created_at')
+        all_lowlights = Level4Text.objects.filter(user=user, category='lowlight').order_by('-created_at')
+    elif user.profile.level == 1:
         all_highlights = Level4Text.objects.filter(category='highlight').order_by('-created_at')
         all_lowlights = Level4Text.objects.filter(category='lowlight').order_by('-created_at')
-        subdivisions = Profile.objects.values_list('sub_div', flat=True).distinct()
-        
     else:
-        # Fetch all subordinates recursively
-        all_subordinates = get_all_subordinates(request.user.profile)
-        subordinate_user_ids = [subordinate.user.id for subordinate in all_subordinates]
+        all_subordinates = get_all_subordinates(user.profile)
+        user_ids = [sub.user.id for sub in all_subordinates]
+        all_highlights = Level4Text.objects.filter(user__in=user_ids, category='highlight').order_by('-created_at')
+        all_lowlights = Level4Text.objects.filter(user__in=user_ids, category='lowlight').order_by('-created_at')
 
-        # Retrieve highlights and lowlights for all subordinates
-        all_highlights = Level4Text.objects.filter(user__in=subordinate_user_ids, category='highlight').order_by('-created_at')
-        all_lowlights = Level4Text.objects.filter(user__in=subordinate_user_ids, category='lowlight').order_by('-created_at')
+    highlights = [t.text.replace('\r', '').replace('\n', ' ') for t in all_highlights.filter(sub_div=department)]
+    lowlights = [t.text.replace('\r', '').replace('\n', ' ') for t in all_lowlights.filter(sub_div=department)]
 
-        # Get all subdivisions under the Level 2 user
-        subdivisions = Profile.objects.filter(manager=request.user.profile).values_list('sub_div', flat=True).distinct()
-    # Create a new PowerPoint presentation
-    presentation = Presentation()
+    if not highlights and not lowlights:
+        highlights = ["No highlights available."]
+        lowlights = ["No lowlights available."]
 
-    for sub_div in subdivisions:
-        subdiv_highlights = all_highlights.filter(sub_div=sub_div)
-        subdiv_lowlights = all_lowlights.filter(sub_div=sub_div)
-        # Clean the text to remove carriage return characters
-        highlights = [text.text.replace('\r', '').replace('\n', ' ') for text in subdiv_highlights]
-        lowlights = [text.text.replace('\r', '').replace('\n', ' ') for text in subdiv_lowlights]
+    # SLIDE 2 — HL & LL Table
+    slide2 = presentation.slides.add_slide(presentation.slide_layouts[15])
+    #slide2.shapes.title.text = f"{full_name} – HL & LL – {department}"
 
-        # Add a slide for the current subdivision
-        slide_layout = presentation.slide_layouts[5]  # Title and Content layout
-        slide = presentation.slides.add_slide(slide_layout)
+    row_count = max(1, max(len(highlights), len(lowlights))) + 1
+    col_count = 2
+    left = Inches(0.8)
+    top = Inches(2)
+    width = Inches(8.4)
+    height = Inches(0.6 * row_count)
 
-        # Add title
-        title = slide.shapes.title
-        title.text = f"Highlights and Lowlights - {sub_div}"
+    table = slide2.shapes.add_table(row_count, col_count, left, top, width, height).table
+    table.cell(0, 0).text = "Highlights"
+    table.cell(0, 1).text = "Lowlights"
 
-        # Add a table for Highlights and Lowlights
-        row_count = max(len(highlights), len(lowlights)) + 1  # +1 for the header row
-        col_count = 2
+    for i in range(2):
+        cell = table.cell(0, i)
+        para = cell.text_frame.paragraphs[0]
+        para.font.bold = True
+        para.font.name = 'Arial'
+        para.font.size = Pt(14)
+        para.font.color.rgb = RGBColor(255, 255, 255)
+        para.alignment = PP_ALIGN.CENTER
+        cell.fill.solid()
+        cell.fill.fore_color.rgb = RGBColor(10, 130, 118)
 
-        # Table position and dimensions
-        left = Inches(1)
-        top = Inches(2)
-        width = Inches(8)
-        height = Inches(0.6 * row_count)
+    for i in range(1, row_count):
+        table.cell(i, 0).text = highlights[i - 1] if i - 1 < len(highlights) else ""
+        table.cell(i, 1).text = lowlights[i - 1] if i - 1 < len(lowlights) else ""
+        for j in range(2):
+            para = table.cell(i, j).text_frame.paragraphs[0]
+            para.font.name = 'Arial'
+            para.font.size = Pt(12)
+            para.alignment = PP_ALIGN.LEFT
 
-        table = slide.shapes.add_table(row_count, col_count, left, top, width, height).table
+    # SLIDE 3 — Static Slide
+    if len(presentation.slide_layouts) > 2:
+       presentation.slides.add_slide(presentation.slide_layouts[17])
 
-        # Set column headers
-        table.cell(0, 0).text = "Highlights"
-        table.cell(0, 1).text = "Lowlights"
-
-        # Style the header row
-        for i in range(2):
-            cell = table.cell(0, i)
-            cell.text_frame.paragraphs[0].font.bold = True
-            cell.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
-            cell.text_frame.paragraphs[0].font.size = Pt(14)
-            cell.fill.solid()
-            cell.fill.fore_color.rgb = RGBColor(10, 130, 118)
-            cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
-
-        # Populate the table with highlights and lowlights
-        for i in range(1, row_count):
-            # Highlights
-            if i - 1 < len(highlights):
-                table.cell(i, 0).text = highlights[i - 1]
-            else:
-                table.cell(i, 0).text = ""
-
-            # Lowlights
-            if i - 1 < len(lowlights):
-                table.cell(i, 1).text = lowlights[i - 1]
-            else:
-                table.cell(i, 1).text = ""
-
-            # Style table content
-            for j in range(2):
-                cell = table.cell(i, j)
-                cell.text_frame.paragraphs[0].font.size = Pt(12)
-                cell.text_frame.paragraphs[0].alignment = PP_ALIGN.LEFT
-
-    # Save the presentation to a BytesIO stream
-    from io import BytesIO
+    # Return as downloadable PPTX
     ppt_stream = BytesIO()
     presentation.save(ppt_stream)
     ppt_stream.seek(0)
 
-    # Return the PowerPoint file as a response
     response = HttpResponse(ppt_stream, content_type='application/vnd.openxmlformats-officedocument.presentationml.presentation')
     response['Content-Disposition'] = 'attachment; filename="Highlights_Lowlights.pptx"'
     return response
