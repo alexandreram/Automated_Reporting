@@ -18,8 +18,7 @@ class Profile(models.Model):
         ('CSS', 'Connected Secure Systems'),
         ('GIP', 'Green Industrial Power'),
         ('PSS', 'Power & Sensor Systems'),
-        ('-', '-'),
-    ], max_length=10, default='none')
+    ], max_length=10, default='FE')
     sub_div = models.CharField(choices=[
         ('FE VIH', 'Villach'),
         ('FE DRS', 'Dresden'),
@@ -37,8 +36,7 @@ class Profile(models.Model):
         ('QM JP', 'JP'),
         ('QM GC', 'GC'),
         ('QM AP', 'AP'),
-        ('-', '-'),
-    ], max_length=10, default='none')
+    ], max_length=10, default='DRS')
     level = models.IntegerField(choices=[
         (1, 'Level 1 (Admin)'),
         (2, 'Level 2 (DIV Manager)'),

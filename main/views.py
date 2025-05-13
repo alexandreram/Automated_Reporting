@@ -1,5 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.admin.views.decorators import staff_member_required
 from main.utils import can_access, get_all_subordinates
 from django.http import HttpResponseForbidden
 from django.contrib.auth.models import User
@@ -112,35 +113,66 @@ def level_4_page(request):
         category='lowlight'
     ).order_by('-created_at')
 
+    current_week = datetime.datetime.now().isocalendar()[1]  # Get the current week number
+
+    current_week_highlights = all_highlights.filter(created_at__week=current_week)
+    older_highlights = all_highlights.exclude(created_at__week=current_week)
+
+    current_week_lowlights = all_lowlights.filter(created_at__week=current_week)
+    older_lowlights = all_lowlights.exclude(created_at__week=current_week)
+
     return render(request, 'level_4_page.html', {
-        'all_highlights': all_highlights,
-        'all_lowlights': all_lowlights,
+        'current_week': current_week,
+        'current_week_highlights': current_week_highlights,
+        'older_highlights': older_highlights,
+        'current_week_lowlights': current_week_lowlights,
+        'older_lowlights': older_lowlights,
         'user_div': user_div,
         'user_sub_div': user_sub_div,
     })
 
-@login_required
 def level_1_page(request):
     if request.user.profile.level != 1:
         return HttpResponseForbidden("You do not have permission to access this page.")
 
     # Retrieve all highlights and lowlights grouped by division and subdivision
     divisions = Profile.objects.values_list('div', flat=True).distinct()
-    grouped_data = {}
+    grouped_data_current_week = {}
+    grouped_data_old = {}
+
+    current_week = datetime.datetime.now().isocalendar()[1]  # Get the current week number
 
     for div in divisions:
         subdivisions = Profile.objects.filter(div=div).values_list('sub_div', flat=True).distinct()
-        grouped_data[div] = {}
+        grouped_data_current_week[div] = {}
+        grouped_data_old[div] = {}
         for sub_div in subdivisions:
-            highlights = Level4Text.objects.filter(sub_div=sub_div, category='highlight').order_by('-created_at')
-            lowlights = Level4Text.objects.filter(sub_div=sub_div, category='lowlight').order_by('-created_at')
-            grouped_data[div][sub_div] = {
-                'highlights': highlights,
-                'lowlights': lowlights,
+            highlights_current_week = Level4Text.objects.filter(
+                sub_div=sub_div, category='highlight', created_at__week=current_week
+            ).order_by('-created_at')
+            lowlights_current_week = Level4Text.objects.filter(
+                sub_div=sub_div, category='lowlight', created_at__week=current_week
+            ).order_by('-created_at')
+
+            highlights_old = Level4Text.objects.filter(
+                sub_div=sub_div, category='highlight'
+            ).exclude(created_at__week=current_week).order_by('-created_at')
+            lowlights_old = Level4Text.objects.filter(
+                sub_div=sub_div, category='lowlight'
+            ).exclude(created_at__week=current_week).order_by('-created_at')
+
+            grouped_data_current_week[div][sub_div] = {
+                'highlights': highlights_current_week,
+                'lowlights': lowlights_current_week,
+            }
+            grouped_data_old[div][sub_div] = {
+                'highlights': highlights_old,
+                'lowlights': lowlights_old,
             }
 
     return render(request, 'level_1_page.html', {
-        'grouped_data': grouped_data,
+        'grouped_data_current_week': grouped_data_current_week,
+        'grouped_data_old': grouped_data_old,
     })
 
 @login_required
@@ -149,27 +181,25 @@ def level_3_page(request):
         return HttpResponseForbidden("You do not have permission to access this page.")
 
     # Get the subdivisions directly under the Level 3 user
-    subordinates = Profile.objects.filter(manager=request.user.profile)
-    subdivisions = subordinates.values_list('sub_div', flat=True).distinct()
+    all_subordinates = get_all_subordinates(request.user.profile)
+    subordinate_user_ids = [subordinate.user.id for subordinate in all_subordinates]
+    all_highlights = Level4Text.objects.filter(user__in=subordinate_user_ids, category='highlight').order_by('-created_at')
+    all_lowlights = Level4Text.objects.filter(user__in=subordinate_user_ids, category='lowlight').order_by('-created_at')
 
-    # Get the selected subdivision from the query parameters
-    selected_sub_div = request.GET.get('sub_div', None)
+    current_week = datetime.datetime.now().isocalendar()[1]  # Get the current week number
 
-    if selected_sub_div:
-        # Filter highlights and lowlights for the selected subdivision
-        subordinate_user_ids = subordinates.filter(sub_div=selected_sub_div).values_list('user', flat=True)
-        all_highlights = Level4Text.objects.filter(user__in=subordinate_user_ids, category='highlight').order_by('-created_at')
-        all_lowlights = Level4Text.objects.filter(user__in=subordinate_user_ids, category='lowlight').order_by('-created_at')
-    else:
-        # Default to showing no highlights or lowlights if no subdivision is selected
-        all_highlights = []
-        all_lowlights = []
+    current_week_highlights = all_highlights.filter(created_at__week=current_week)
+    older_highlights = all_highlights.exclude(created_at__week=current_week)
+
+    current_week_lowlights = all_lowlights.filter(created_at__week=current_week)
+    older_lowlights = all_lowlights.exclude(created_at__week=current_week)
+
 
     return render(request, 'level_3_page.html', {
-        'subdivisions': subdivisions,
-        'selected_sub_div': selected_sub_div,
-        'all_highlights': all_highlights,
-        'all_lowlights': all_lowlights,
+        'current_week_highlights': current_week_highlights,
+        'older_highlights': older_highlights,
+        'current_week_lowlights': current_week_lowlights,
+        'older_lowlights': older_lowlights,
     })
 
 
@@ -182,19 +212,25 @@ def level_2_page(request):
     # Fetch all subordinates recursively
     all_subordinates = get_all_subordinates(request.user.profile)
     subordinate_user_ids = [subordinate.user.id for subordinate in all_subordinates]
-    selected_sub_div = request.GET.get('sub_div', None)
     # Retrieve highlights and lowlights for all subordinates
     all_highlights = Level4Text.objects.filter(user__in=subordinate_user_ids, category='highlight').order_by('-sub_div', '-created_at')
     all_lowlights = Level4Text.objects.filter(user__in=subordinate_user_ids, category='lowlight').order_by('-sub_div', '-created_at')
 
-    # Get all subdivisions under the Level 2 user
-    subdivisions = Profile.objects.filter(manager=request.user.profile).values_list('sub_div', flat=True).distinct()
+    current_week = datetime.datetime.now().isocalendar()[1]  # Get the current week number
 
-    return render(request, 'level_2_page.html', {
-        'subdivisions': subdivisions,
-        'selected_sub_div': selected_sub_div,
-        'all_highlights': all_highlights,
-        'all_lowlights': all_lowlights,
+    current_week_highlights = all_highlights.filter(created_at__week=current_week)
+    older_highlights = all_highlights.exclude(created_at__week=current_week)
+
+    current_week_lowlights = all_lowlights.filter(created_at__week=current_week)
+    older_lowlights = all_lowlights.exclude(created_at__week=current_week)
+
+
+
+    return render(request, 'level_3_page.html', {
+        'current_week_highlights': current_week_highlights,
+        'older_highlights': older_highlights,
+        'current_week_lowlights': current_week_lowlights,
+        'older_lowlights': older_lowlights,
     })
 
 @login_required
@@ -265,18 +301,23 @@ def generate_ppt(request):
     if len(slide1.placeholders) > 1:
         slide1.placeholders[1].text = f"Department: {department}\nDate: {today}"
 
+    selected_highlights_ids = request.POST.getlist('selected_highlights')
+    selected_lowlights_ids = request.POST.getlist('selected_lowlights')
+
+    print('selected_highlights', selected_highlights_ids)
+
     #Get HL/LL data
     if user.profile.level == 4:
-        all_highlights = Level4Text.objects.filter(user=user, category='highlight').order_by('-created_at')
-        all_lowlights = Level4Text.objects.filter(user=user, category='lowlight').order_by('-created_at')
+        all_highlights = Level4Text.objects.filter(id__in=selected_highlights_ids, user=user, category='highlight').order_by('-created_at')
+        all_lowlights = Level4Text.objects.filter(id__in=selected_lowlights_ids, user=user, category='lowlight').order_by('-created_at')
     elif user.profile.level == 1:
-        all_highlights = Level4Text.objects.filter(category='highlight').order_by('-created_at')
-        all_lowlights = Level4Text.objects.filter(category='lowlight').order_by('-created_at')
+        all_highlights = Level4Text.objects.filter(id__in=selected_highlights_ids, category='highlight').order_by('-created_at')
+        all_lowlights = Level4Text.objects.filter(id__in=selected_lowlights_ids, category='lowlight').order_by('-created_at')
     else:
         all_subordinates = get_all_subordinates(user.profile)
         user_ids = [sub.user.id for sub in all_subordinates]
-        all_highlights = Level4Text.objects.filter(user__in=user_ids, category='highlight').order_by('-created_at')
-        all_lowlights = Level4Text.objects.filter(user__in=user_ids, category='lowlight').order_by('-created_at')
+        all_highlights = Level4Text.objects.filter(id__in=selected_highlights_ids, user__in=user_ids, category='highlight').order_by('-created_at')
+        all_lowlights = Level4Text.objects.filter(id__in=selected_lowlights_ids, user__in=user_ids, category='lowlight').order_by('-created_at')
 
     highlights = [t.text.replace('\r', '').replace('\n', ' ') for t in all_highlights.filter(sub_div=department)]
     lowlights = [t.text.replace('\r', '').replace('\n', ' ') for t in all_lowlights.filter(sub_div=department)]
@@ -293,7 +334,7 @@ def generate_ppt(request):
     col_count = 2
     left = Inches(0.8)
     top = Inches(2)
-    width = Inches(8.4)
+    width = Inches(11.76)
     height = Inches(0.6 * row_count)
 
     table = slide2.shapes.add_table(row_count, col_count, left, top, width, height).table
@@ -332,3 +373,10 @@ def generate_ppt(request):
     response = HttpResponse(ppt_stream, content_type='application/vnd.openxmlformats-officedocument.presentationml.presentation')
     response['Content-Disposition'] = 'attachment; filename="Highlights_Lowlights.pptx"'
     return response
+
+@staff_member_required
+def admin_delete_texts(request):
+    if request.method == 'POST':
+        deleted_count, _ = Level4Text.objects.all().delete()
+        return render(request, 'admin_delete_texts.html', {'deleted_count': deleted_count})
+    return render(request, 'admin_delete_texts.html')

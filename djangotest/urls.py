@@ -35,4 +35,5 @@ urlpatterns = [
     path('level-2/', views.level_2_page, name='level_2_page'),
     path('add_text', views.add_text, name='add_text'),  # Add text page
     path('level-1/', views.level_1_page, name='level_1_page'),
+    path('delete-texts/', views.admin_delete_texts, name='admin_delete_texts'),
 ]
