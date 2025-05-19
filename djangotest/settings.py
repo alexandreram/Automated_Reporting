@@ -125,5 +125,5 @@ STATIC_ROOT = BASE_DIR / "staticfiles"  # Directory where collectstatic will col
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Redirect users to the main page after login
-LOGIN_REDIRECT_URL = '/main/'
+LOGIN_REDIRECT_URL = '/redirect-after-login/'
 LOGOUT_REDIRECT_URL = '/logout/'  # Redirect to the login page after logout

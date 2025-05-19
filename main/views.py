@@ -69,6 +69,20 @@ def main_page(request):
     else:
         # Redirect to login if the user level is invalid
         return HttpResponseRedirect(reverse('login'))
+    
+@login_required
+def redirect_after_login(request):
+    level = request.user.profile.level
+    if level == 4:
+        return redirect('HL_LL')
+    elif level == 3:
+        return redirect('level_3_page')
+    elif level == 2:
+        return redirect('level_2_page')
+    elif level == 1:
+        return redirect('level_1_page')
+    else:
+        return redirect('main')
 
 @login_required
 def level_4_page(request):
