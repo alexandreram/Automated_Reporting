@@ -75,15 +75,13 @@
             });
         });
     });
-    document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('input[type="text"][name="typed_text"]').forEach(function(input) {
-            input.addEventListener('input', function() {
-                if (input.value !== input.defaultValue) {
-                    input.classList.add('unsaved');
-                } else {
-                    input.classList.remove('unsaved');
-                }
-            });
+    document.querySelectorAll('input[name="typed_text"], textarea[name="typed_text"]').forEach(function(input) {
+        input.addEventListener('input', function() {
+            if (input.value !== input.defaultValue) {
+                input.classList.add('unsaved');
+            } else {
+                input.classList.remove('unsaved');
+            }
         });
     });
     </script>

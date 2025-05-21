@@ -219,6 +219,7 @@ def level_3_page(request):
         'older_highlights': older_highlights,
         'current_week_lowlights': current_week_lowlights,
         'older_lowlights': older_lowlights,
+        'subdivisions': subdivisions,
     })
 
 
@@ -252,7 +253,7 @@ def level_2_page(request):
 
 
 
-    return render(request, 'level_3_page.html', {
+    return render(request, 'level_2_page.html', {
         'current_week_highlights': current_week_highlights,
         'older_highlights': older_highlights,
         'current_week_lowlights': current_week_lowlights,
