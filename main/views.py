@@ -194,9 +194,14 @@ def level_3_page(request):
     if request.user.profile.level != 3:
         return HttpResponseForbidden("You do not have permission to access this page.")
 
-    # Get the subdivisions directly under the Level 3 user
+    # Fetch all subordinates recursively
     all_subordinates = get_all_subordinates(request.user.profile)
+    # Include the user himself
+    all_subordinates = list(all_subordinates) + [request.user.profile]
     subordinate_user_ids = [subordinate.user.id for subordinate in all_subordinates]
+    subdivisions = [subordinate.sub_div for subordinate in all_subordinates]
+    subdivisions = list(set(subdivisions))  # Remove duplicates
+
     all_highlights = Level4Text.objects.filter(user__in=subordinate_user_ids, category='highlight').order_by('-created_at')
     all_lowlights = Level4Text.objects.filter(user__in=subordinate_user_ids, category='lowlight').order_by('-created_at')
 
@@ -225,11 +230,18 @@ def level_2_page(request):
 
     # Fetch all subordinates recursively
     all_subordinates = get_all_subordinates(request.user.profile)
+    # Include the user himself
+    all_subordinates = list(all_subordinates) + [request.user.profile]
     subordinate_user_ids = [subordinate.user.id for subordinate in all_subordinates]
+    subdivisions = [subordinate.sub_div for subordinate in all_subordinates]
+    subdivisions = list(set(subdivisions))  # Remove duplicates
+
     # Retrieve highlights and lowlights for all subordinates
     all_highlights = Level4Text.objects.filter(user__in=subordinate_user_ids, category='highlight').order_by('-sub_div', '-created_at')
     all_lowlights = Level4Text.objects.filter(user__in=subordinate_user_ids, category='lowlight').order_by('-sub_div', '-created_at')
 
+    print("Highlights sub_divs:", list(all_highlights.values_list('sub_div', flat=True).distinct()))
+    
     current_week = datetime.datetime.now().isocalendar()[1]  # Get the current week number
 
     current_week_highlights = all_highlights.filter(created_at__week=current_week)
@@ -245,6 +257,7 @@ def level_2_page(request):
         'older_highlights': older_highlights,
         'current_week_lowlights': current_week_lowlights,
         'older_lowlights': older_lowlights,
+        'subdivisions': subdivisions,
     })
 
 @login_required
@@ -269,6 +282,7 @@ def edit_text(request, text_id):
 
 @login_required
 def add_text(request):
+
     if request.method == 'POST':
         sub_div = request.POST.get('sub_div')
         highlight_text = request.POST.get('highlight_text', '').strip()
@@ -294,7 +308,6 @@ def add_text(request):
                 category='lowlight',
                 text=lowlight_text
             )
-
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
 
 @login_required
@@ -329,12 +342,14 @@ def generate_ppt(request):
         all_lowlights = Level4Text.objects.filter(id__in=selected_lowlights_ids, category='lowlight').order_by('-created_at')
     else:
         all_subordinates = get_all_subordinates(user.profile)
+        print('all_subordinates', all_subordinates)
         user_ids = [sub.user.id for sub in all_subordinates]
         all_highlights = Level4Text.objects.filter(id__in=selected_highlights_ids, user__in=user_ids, category='highlight').order_by('-created_at')
         all_lowlights = Level4Text.objects.filter(id__in=selected_lowlights_ids, user__in=user_ids, category='lowlight').order_by('-created_at')
+        print('all_highlights', all_highlights)
 
-    highlights = [t.text.replace('\r', '').replace('\n', ' ') for t in all_highlights.filter(sub_div=department)]
-    lowlights = [t.text.replace('\r', '').replace('\n', ' ') for t in all_lowlights.filter(sub_div=department)]
+    highlights = [t.text.replace('\r', '').replace('\n', ' ') for t in all_highlights]
+    lowlights = [t.text.replace('\r', '').replace('\n', ' ') for t in all_lowlights]
 
     if not highlights and not lowlights:
         highlights = ["No highlights available."]

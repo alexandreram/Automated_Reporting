@@ -10,7 +10,6 @@
     <!-- Navigation Bar -->
     <nav class="navbar">
         <div class="container">
-            <a href="{% url 'main' %}" class="logo">Home</a>
             <div class="nav-links">
                 {% if user.is_authenticated %}
                     <form method="post" action="{% url 'logout' %}" style="display: inline;">
@@ -30,5 +29,71 @@
     <footer class="footer">
         <p>&copy; 2025 Prototype - Ramond CSC E IN. All rights reserved.</p>
     </footer>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.edit-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var li = btn.closest('li');
+                li.querySelector('.display-text').style.display = 'none';
+                li.querySelector('.edit-form').style.display = '';
+                btn.style.display = 'none';
+            });
+        });
+        document.querySelectorAll('.cancel-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var li = btn.closest('li');
+                li.querySelector('.display-text').style.display = '';
+                li.querySelector('.edit-form').style.display = 'none';
+                li.querySelector('.edit-btn').style.display = '';
+            });
+        });
+        document.querySelectorAll('.edit-form').forEach(function(form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                var li = form.closest('li');
+                var textId = form.getAttribute('data-id');
+                var newText = form.querySelector('textarea[name="text"]').value;
+                var csrfToken = form.querySelector('[name=csrfmiddlewaretoken]').value;
+                fetch("{% url 'edit_text' 0 %}".replace('0', textId), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: 'typed_text=' + encodeURIComponent(newText)
+                })
+                .then(response => {
+                    if (response.ok) {
+                        li.querySelector('.text-content').textContent = newText;
+                        li.querySelector('.display-text').style.display = '';
+                        form.style.display = 'none';
+                        li.querySelector('.edit-btn').style.display = '';
+                    } else {
+                        alert('Failed to update text.');
+                    }
+                });
+            });
+        });
+    });
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('input[type="text"][name="typed_text"]').forEach(function(input) {
+            input.addEventListener('input', function() {
+                if (input.value !== input.defaultValue) {
+                    input.classList.add('unsaved');
+                } else {
+                    input.classList.remove('unsaved');
+                }
+            });
+        });
+    });
+    </script>
+
+    <style>
+    .unsaved {
+        background-color: #fff3cd !important; /* light yellow */
+        color: #856404 !important;           /* dark yellow/brown text */
+        border-color: #ffeeba !important;
+    }
+    </style>
 </body>
 </html>
