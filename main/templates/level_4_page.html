@@ -42,7 +42,7 @@
                             <button type="submit" class="button">Save</button>
                         </form>
                         <input type="checkbox" form="ppt-export-form" name="selected_highlights" value="{{ text.id }}" checked style="margin-left: 8px;">
-                        <a href="{% url 'delete_text' text.id %}" onclick="return confirm('Are you sure you want to delete this text?');" style="margin-left: 8px;">Delete</a> 
+                        <a href="{% url 'delete_text' text.id %}" class="delete-btn" onclick="return confirm('Are you sure you want to delete this text?');">Delete</a>
                         <div style="font-size: 1.2em; color: #888;">
                         <strong>{{ text.sub_div}} - {{ text.created_at|date:"Y-m-d" }}</strong>
                         </div> 
@@ -65,7 +65,7 @@
                             <button type="submit" class="button">Save</button>
                         </form>
                         <input type="checkbox" form="ppt-export-form" name="selected_lowlights" value="{{ text.id }}" checked style="margin-left: 8px;">
-                        <a href="{% url 'delete_text' text.id %}" onclick="return confirm('Are you sure you want to delete this text?');" style="margin-left: 8px;">Delete</a>
+                        <a href="{% url 'delete_text' text.id %}" class="delete-btn" onclick="return confirm('Are you sure you want to delete this text?');">Delete</a>
                         <div style="font-size: 1.2em; color: #888;">
                         <strong>{{ text.sub_div}} - {{ text.created_at|date:"Y-m-d" }}</strong>
                         </div>

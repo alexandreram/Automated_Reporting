@@ -37,4 +37,5 @@ urlpatterns = [
     path('level-1/', views.level_1_page, name='level_1_page'),
     path('delete-texts/', views.admin_delete_texts, name='admin_delete_texts'),
     path('redirect-after-login/', views.redirect_after_login, name='redirect_after_login'),
+    path('toggle-export-selection/<int:text_id>/', views.toggle_export_selection, name='toggle_export_selection'),
 ]

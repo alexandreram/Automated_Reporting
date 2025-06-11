@@ -30,6 +30,23 @@
         <p>&copy; 2025 Prototype - Ramond CSC E IN. All rights reserved.</p>
     </footer>
     <script>
+
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.export-checkbox').forEach(function(cb) {
+            function updateRowStyle() {
+                var li = cb.closest('li');
+                if (cb.checked) {
+                    li.classList.add('selected-for-export');
+                } else {
+                    li.classList.remove('selected-for-export');
+                }
+            }
+            cb.addEventListener('change', updateRowStyle);
+            // Initial state
+            updateRowStyle();
+        });
+    });
+
     document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.edit-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
@@ -75,6 +92,27 @@
             });
         });
     });
+
+
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.export-checkbox').forEach(function(cb) {
+            cb.addEventListener('change', function() {
+                var textId = cb.getAttribute('value');
+                var selected = cb.checked;
+                fetch('/toggle-export-selection/' + textId + '/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: 'selected=' + selected
+                }).then(response => {
+                    if (!response.ok) alert('Failed to update selection');
+                });
+            });
+        });
+    });
+
     document.querySelectorAll('input[name="typed_text"], textarea[name="typed_text"]').forEach(function(input) {
         input.addEventListener('input', function() {
             if (input.value !== input.defaultValue) {
@@ -84,6 +122,27 @@
             }
         });
     });
+
+    document.addEventListener('DOMContentLoaded', function() {
+    // Dropdown filter logic
+    const filter = document.getElementById('display-filter');
+    function updateDisplay() {
+        const showAll = filter.value === 'all';
+        document.querySelectorAll('.highlight-item, .lowlight-item').forEach(function(li) {
+            if (showAll) {
+                li.style.display = 'flex';
+            } else {
+                if (li.classList.contains('not-selected')) {
+                    li.style.display = 'none';
+                } else {
+                    li.style.display = 'flex';
+                }
+            }
+        });
+    }
+    filter.addEventListener('change', updateDisplay);
+    updateDisplay(); // Initial state: only selected
+});
     </script>
 
     <style>

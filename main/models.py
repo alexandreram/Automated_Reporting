@@ -8,6 +8,7 @@ class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     manager = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='subordinates')
     div = models.CharField(choices=[
+        ('-', 'No Division'),
         ('BE', 'Backend'),
         ('CSC', 'Corporate Supply Chain'),
         ('EWM', 'Enhanced Warehouse Management'),
@@ -18,9 +19,11 @@ class Profile(models.Model):
         ('CSS', 'Connected Secure Systems'),
         ('GIP', 'Green Industrial Power'),
         ('PSS', 'Power & Sensor Systems'),
-    ], max_length=10, default='FE')
+    ], max_length=10, default='-', blank=True)
     sub_div = models.CharField(choices=[
+        ('-', 'No Subdivision'), 
         ('FE VIH', 'Villach'),
+        ('FE OPC', 'OPC'),
         ('FE DRS', 'Dresden'),
         ('FE RBG', 'Regensburg'),
         ('FE KLM', 'Kulim'),
@@ -36,7 +39,7 @@ class Profile(models.Model):
         ('QM JP', 'JP'),
         ('QM GC', 'GC'),
         ('QM AP', 'AP'),
-    ], max_length=10, default='DRS')
+    ], max_length=10, default='-', blank=True)
     level = models.IntegerField(choices=[
         (1, 'Level 1 (Admin)'),
         (2, 'Level 2 (DIV Manager)'),
@@ -76,6 +79,7 @@ class Level4Text(models.Model):
     category = models.CharField(max_length=10, choices=CATEGORY_CHOICES, default="Highlight")  # Highlight or Lowlight
     text = models.TextField()  # Field to store the submitted text
     created_at = models.DateTimeField(auto_now_add=True)  # Timestamp for when the text was created
+    export_selected = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.user.username} - {self.category} - {self.created_at}"

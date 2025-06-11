@@ -17,6 +17,8 @@ from pptx.util import Inches
 from io import BytesIO
 from .models import Level4Text, Profile
 from .utils import get_all_subordinates
+from django.views.decorators.http import require_POST
+from django.http import JsonResponse
 
 import os
 import datetime
@@ -261,6 +263,20 @@ def level_2_page(request):
         'subdivisions': subdivisions,
     })
 
+
+
+@require_POST
+@login_required
+def toggle_export_selection(request, text_id):
+    text = get_object_or_404(Level4Text, id=text_id)
+    # Only allow the user's manager or the user to change selection
+    if request.user == text.user or request.user.profile.level < text.user.profile.level:
+        selected = request.POST.get('selected') == 'true'
+        text.export_selected = selected
+        text.save()
+        return JsonResponse({'success': True, 'selected': text.export_selected})
+    return JsonResponse({'success': False}, status=403)
+
 @login_required
 def delete_text(request, text_id):
     text = get_object_or_404(Level4Text, id=text_id)
@@ -336,21 +352,38 @@ def generate_ppt(request):
 
     #Get HL/LL data
     if user.profile.level == 4:
-        all_highlights = Level4Text.objects.filter(id__in=selected_highlights_ids, user=user, category='highlight').order_by('-created_at')
-        all_lowlights = Level4Text.objects.filter(id__in=selected_lowlights_ids, user=user, category='lowlight').order_by('-created_at')
+        all_highlights = Level4Text.objects.filter(
+            id__in=selected_highlights_ids, user=user, category='highlight', export_selected=True
+        ).order_by('-created_at')
+        all_lowlights = Level4Text.objects.filter(
+            id__in=selected_lowlights_ids, user=user, category='lowlight', export_selected=True
+        ).order_by('-created_at')
     elif user.profile.level == 1:
-        all_highlights = Level4Text.objects.filter(id__in=selected_highlights_ids, category='highlight').order_by('-created_at')
-        all_lowlights = Level4Text.objects.filter(id__in=selected_lowlights_ids, category='lowlight').order_by('-created_at')
+        all_highlights = Level4Text.objects.filter(
+            id__in=selected_highlights_ids, category='highlight', export_selected=True
+        ).order_by('-created_at')
+        all_lowlights = Level4Text.objects.filter(
+            id__in=selected_lowlights_ids, category='lowlight', export_selected=True
+        ).order_by('-created_at')
     else:
-        all_subordinates = get_all_subordinates(user.profile)
-        print('all_subordinates', all_subordinates)
+        all_subordinates = get_all_subordinates(user.profile) + [user.profile]
         user_ids = [sub.user.id for sub in all_subordinates]
-        all_highlights = Level4Text.objects.filter(id__in=selected_highlights_ids, user__in=user_ids, category='highlight').order_by('-created_at')
-        all_lowlights = Level4Text.objects.filter(id__in=selected_lowlights_ids, user__in=user_ids, category='lowlight').order_by('-created_at')
-        print('all_highlights', all_highlights)
+        all_highlights = Level4Text.objects.filter(
+            id__in=selected_highlights_ids, user__in=user_ids, category='highlight', export_selected=True
+        ).order_by('-created_at')
+        all_lowlights = Level4Text.objects.filter(
+            id__in=selected_lowlights_ids, user__in=user_ids, category='lowlight', export_selected=True
+        ).order_by('-created_at')
 
-    highlights = [t.text.replace('\r', '').replace('\n', ' ') for t in all_highlights]
-    lowlights = [t.text.replace('\r', '').replace('\n', ' ') for t in all_lowlights]
+    highlights = []
+    for t in all_highlights:
+        clean_text = t.text.replace('\r', '').replace('\n', ' ')
+        highlights.append(f"[{t.sub_div}] {clean_text}")
+
+    lowlights = []
+    for t in all_lowlights:
+        clean_text = t.text.replace('\r', '').replace('\n', ' ')
+        lowlights.append(f"[{t.sub_div}] {clean_text}")
 
     if not highlights and not lowlights:
         highlights = ["No highlights available."]
@@ -363,7 +396,7 @@ def generate_ppt(request):
     row_count = max(1, max(len(highlights), len(lowlights))) + 1
     col_count = 2
     left = Inches(0.8)
-    top = Inches(2)
+    top = Inches(1)
     width = Inches(11.76)
     height = Inches(0.6 * row_count)
 
@@ -390,6 +423,20 @@ def generate_ppt(request):
             para.font.name = 'Arial'
             para.font.size = Pt(12)
             para.alignment = PP_ALIGN.LEFT
+    
+    comment_left = Inches(0.8)
+    comment_top = Inches(6)
+    comment_width = Inches(11.76)
+    comment_height = Inches(0.6)
+    comment_box = slide2.shapes.add_textbox(comment_left, comment_top, comment_width, comment_height)
+    comment_frame = comment_box.text_frame
+    comment_frame.text = "Comments:"
+    comment_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+    comment_frame.paragraphs[0].font.size = Pt(14)
+    comment_frame.paragraphs[0].font.bold = True
+    comment_frame.paragraphs[0].font.name = 'Arial'
+    comment_box.line.color.rgb = RGBColor(10, 130, 118)
+    comment_box.line.width = Pt(3)
 
     # SLIDE 3 — Static Slide
     if len(presentation.slide_layouts) > 2:
